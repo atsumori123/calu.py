@@ -133,58 +133,101 @@ def cut_point(event):
 	entry_var.set(s)
 
 #-------------------------------------------
+# 区切り文字を削除する
+#-------------------------------------------
+def remove_separator(code, separator):
+	f = 0
+	result = code
+
+	# カンマを削除
+	if code.find(separator) != -1:
+		ret_code = code.replace(separator, '')
+		f = 1 if base == 'DEC' else 0
+
+	# スペースを削除
+	if code.find(' ') != -1:
+		ret_code = ('0x' if base == 'HEX' else '') + code.replace(separator, '')
+
+		f = 1 if base == 'HEX' else 0
+
+	return result, f
+
+#-------------------------------------------
 # 機能ボタンが押されたときの処理
 #-------------------------------------------
 def func_button(event):
-	check = event.widget['text']
+	if event.type == tk.EventType.ButtonPress:
+		check = event.widget['text']
+	elif event.type == tk.EventType.KeyPress:
+		check = event.keysym
+	else:
+		return
 
 	if check == 'C':
 		# Clear
 		clear(event)
 
-	elif check == 'BIN':
+	elif check == 'BIN' or check == 'b':
+		# 区切り文字がある場合は削除する
+		code = entry_var.get()
+		print(code.find('_'))
+		kugiri = 1 if code.find('_') != -1 else 0
+		code = code.replace('_', '')
+		code = code.replace('0b', '')
+
 		# 2進数に変換
-		ret, result = Convert().binary(entry_var.get())
-		entry_var.set(result) if ret == True else info_var.set("cannot convert")
+		ret, result = Convert().binary('0b'+code)
+		if ret == True:
+			print('------------')
+			print(kugiri)
+			print(code)
+			print(result)
+			entry_var.set(result if kugiri == 1 else f'{f"{int(result, 2):#_b}".replace("0b", "")}')
+		else:
+			info_var.set("cannot convert")
+		entry.icursor(tk.END)
 
-	elif check == 'DEC':
+	elif check == 'DEC' or check == 'd':
+		# 区切り文字がある場合は削除する
+		code = entry_var.get()
+		kugiri = 1 if code.find(',') != -1 else 0
+		code = code.replace(',', '')
+
 		# 10進数に変換
-		ret, result = Convert().decimal(entry_var.get())
-		entry_var.set(result) if ret == True else info_var.set("cannot convert")
+		ret, result = Convert().decimal(code)
+		if ret == True:
+			entry_var.set(result if kugiri == 1 else "{:,}".format(int(result)))
+		else:
+			info_var.set("cannot convert")
+		entry.icursor(tk.END)
 
-	elif check == 'HEX':
+	elif check == 'HEX' or check == 'h':
+		# 区切り文字がある場合は削除する
+		code = entry_var.get()
+		kugiri = 1 if code.find(' ') != -1 else 0
+		code = code.replace(' ', '')
+
 		# 16進数に変換
-		ret, result = Convert().hex(entry_var.get())
-		entry_var.set(result) if ret == True else info_var.set("cannot convert")
+		ret, result = Convert().hex(code)
+		if ret == True:
+			print('------------')
+			print(kugiri)
+			print(code)
+			print(result)
+			entry_var.set(result if kugiri == 1 else f'{f"{int(result, 16):_X}".replace("_", " ")}')
+		else:
+			info_var.set("cannot convert")
+		entry.icursor(tk.END)
 
 	elif check == 'CUT':
 		# 小数点以下を切り捨て
 		cut_point(event)
 
-#-------------------------------------------
-# ショートカットキーが押されたときの処理
-#-------------------------------------------
-def keypress_convert(check):
-	if check == 'BIN':
-		# 2進数に変換
-		ret, result = Convert().binary(entry_var.get())
-		entry_var.set(result) if ret == True else info_var.set("cannot convert")
-
-	elif check == 'DEC':
-		# 10進数に変換
-		ret, result = Convert().decimal(entry_var.get())
-		entry_var.set(result) if ret == True else info_var.set("cannot convert")
-
-	elif check == 'HEX':
-		# 16進数に変換
-		ret, result = Convert().hex(entry_var.get())
-		entry_var.set(result) if ret == True else info_var.set("cannot convert")
-
 ################################################################################
 #-------------------------------------------
 # define
 #-------------------------------------------
-BG_COLOR = 'lightslategray'
+BG_COLOR = 'gray13'
 FG_COLOR = 'linen'
 
 #-------------------------------------------
@@ -193,7 +236,7 @@ FG_COLOR = 'linen'
 root = tk.Tk()
 root.resizable(width=False, height=False)
 root.title(u"電卓")	# Windowのタイトル
-root.geometry("500x300") # Windowサイズ
+root.geometry("400x250") # Windowサイズ
 root.configure(bg=BG_COLOR)
 root.update_idletasks() # 設定値の更新
 
@@ -208,7 +251,7 @@ root.bind('<Escape>', clear)
 # 3世代の計算式の配置
 #-------------------------------------------
 # Frame設定
-calc_frame = tk.Frame(root, width=root.winfo_width() - 40, height=170, bg=BG_COLOR)
+calc_frame = tk.Frame(root, width=root.winfo_width() - 40, height=140, bg=BG_COLOR)
 calc_frame.propagate(False) # サイズを固定
 calc_frame.place(x=20, y=20) # フレームの配置位置
 
@@ -217,7 +260,7 @@ history_var = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
 
 # 式の配置
 for i in reversed(range(0, 3)):
-	history = tk.Label(calc_frame, textvariable=history_var[i], font=("Lucida Console",14), fg=FG_COLOR, bg=BG_COLOR)
+	history = tk.Label(calc_frame, textvariable=history_var[i], font=("Lucida Console",10), fg=FG_COLOR, bg=BG_COLOR)
 	history.pack(pady=5, anchor='e')
 	history.bind('<Button-1>', select_history)
 
@@ -228,9 +271,9 @@ for i in reversed(range(0, 3)):
 entry_var = tk.StringVar()
 
 # 式の配置
-entry = tk.Entry(calc_frame, textvariable=entry_var, font=("",35), justify=tk.RIGHT,\
-				width=root.winfo_width()-40, relief=tk.GROOVE, fg=FG_COLOR, bg=BG_COLOR)
-entry.pack(pady=5)
+entry = tk.Entry(calc_frame, textvariable=entry_var, font=("",20), justify=tk.RIGHT, insertbackground="gray80",\
+				width=root.winfo_width()-40, relief=tk.FLAT, fg=FG_COLOR, bg="gray20")
+entry.pack(pady=5, ipady=8)
 
 # フォーカスを設定
 entry.focus_set()
@@ -244,22 +287,22 @@ entry.bind('<Return>', click_calc)
 # Frame設定
 button_frame = tk.Frame(root, width=root.winfo_width(), height=20, bg=BG_COLOR)
 button_frame.propagate(False) # サイズを固定
-button_frame.place(x=20, y=200) # フレームの配置位置
+button_frame.place(x=20, y=165) # フレームの配置位置
 
 # ボタンの配置
 for i, name in enumerate(BUTTON): # Buttonの配置
-	button = tk.Button(button_frame, text=name, font=('', 12), width=4, height=2,\
-						relief=tk.GROOVE, fg=FG_COLOR, bg=BG_COLOR)
-	button.grid(row=1, column=i) # 列や行を指定して配置
+	button = tk.Button(button_frame, text=name, font=('', 10), width=4, height=2,\
+						relief=tk.FLAT, fg=FG_COLOR, bg="gray20")
+	button.grid(row=1, column=i, padx=2) # 列や行を指定して配置
 
 	# Buttonが押された場合
 	button.bind('<Button-1>', func_button)
 
 	# ショートカットキーが押された場合
 	root.bind("<Alt-KeyPress-c>", clear)
-	root.bind("<Alt-KeyPress-b>", lambda event: keypress_convert("BIN"))
-	root.bind("<Alt-KeyPress-d>", lambda event: keypress_convert("DEC"))
-	root.bind("<Alt-KeyPress-h>", lambda event: keypress_convert("HEX"))
+	root.bind("<Alt-KeyPress-b>", func_button)
+	root.bind("<Alt-KeyPress-d>", func_button)
+	root.bind("<Alt-KeyPress-h>", func_button)
 	root.bind("<Alt-KeyPress-p>", cut_point)
 
 #-------------------------------------------
@@ -268,13 +311,13 @@ for i, name in enumerate(BUTTON): # Buttonの配置
 # Frame設定
 info_frame = tk.Frame(root, width=root.winfo_width() - 40, height=40, bg=BG_COLOR)
 info_frame.propagate(False) # サイズを固定
-info_frame.place(x=20, y=250) # フレームの配置位置
+info_frame.place(x=20, y=210) # フレームの配置位置
 
 # メッセージ用の動的変数
 info_var = tk.StringVar()
 
 # メッセージの配置
-info = tk.Label(info_frame, textvariable=info_var, font=("Lucida Console",12), fg=FG_COLOR, bg=BG_COLOR)
+info = tk.Label(info_frame, textvariable=info_var, font=("Lucida Console",10), fg=FG_COLOR, bg=BG_COLOR)
 info.pack(pady=5, anchor='e')
 
 # Display
