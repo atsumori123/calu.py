@@ -1,93 +1,76 @@
 # Libraries Import
-import re
 import tkinter as tk
-from collections import namedtuple
-
-BUTTON = ['C', 'BIN', 'DEC', 'HEX', 'CUT']
 
 # 電卓
-
-class Convert():
-	#-------------------------------------------
-	# 16進数に変換可能か検証する
-	#-------------------------------------------
-	def is_hex_dec_bin(self, val, base):
-		try:
-			int(val, base)
-			return True
-		except ValueError:
-			return False
-
-	#-------------------------------------------
-	# 2進/10進/16進判定
-	#-------------------------------------------
-	def judge_hex_dec_bin(self, code):
-		if code.startswith('0b') == True:
-			# 2進数
-			return 2
-		elif (code.startswith('0x') == True) or\
-			 (re.search(r'[a-f]', code, re.IGNORECASE)):
-			# 16進数
-			return 16
-		else:
-			# 10進数
-			return 10
-
-	#-------------------------------------------
-	# 2進数に変換
-	#-------------------------------------------
-	def binary(self, code):
-		#2進/10進/16進判定
-		base = self.judge_hex_dec_bin(code)
-
-		# 2進数に変換
-		ret = self.is_hex_dec_bin(code, base)
-		return ret, (bin(int(code, base)) if ret == True else "")
-
-	#-------------------------------------------
-	# 10進数に変換
-	#-------------------------------------------
-	def decimal(self, code):
-		#2進/10進/16進判定
-		base = self.judge_hex_dec_bin(code)
-
-		# 10進数に変換
-		ret = self.is_hex_dec_bin(code, base)
-		return ret, (int(code, base) if ret == True else "")
-
-	#-------------------------------------------
-	# 16進数に変換
-	#-------------------------------------------
-	def hex(self, code):
-		#2進/10進/16進判定
-		base = self.judge_hex_dec_bin(code)
-
-		# 10進数に変換
-		ret = self.is_hex_dec_bin(code, base)
-		if ret == True:
-			hex_uppercase = hex(int(code, base)).upper()
-			hex_uppercase = hex_uppercase.replace('X', 'x')
-			return True, hex_uppercase
-		else:
-			return False, ""
-
 #-------------------------------------------
 # 履歴1～3が選択されたときの処理
 #-------------------------------------------
-def select_history(event):
+def on_history(event):
 	code = event.widget['text']
 	i = code.find('=')
-	entry_var.set(code[:i] if i != -1 else code)
+	var_entry.set(code[:i] if i != -1 else code)
+
+#-------------------------------------------
+# 16進数が選択されたときの処理
+#-------------------------------------------
+def on_hex(event):
+	hex = var_base['HEX'].get()
+	if hex != '':
+		var_entry.set('0x' + hex.replace(' ', ''))
+		entry.icursor(tk.END)
+
+#-------------------------------------------
+# 10進数が選択されたときの処理
+#-------------------------------------------
+def on_dec(event):
+	dec = var_base['DEC'].get()
+	if dec != '':
+		var_entry.set(dec.replace(',', ''))
+		entry.icursor(tk.END)
+
+#-------------------------------------------
+# 2進数が選択されたときの処理
+#-------------------------------------------
+def on_bin(event):
+	bin = var_base['BIN'].get()
+	if bin != '':
+		bin = bin.replace('\n', '')
+		bin = bin.replace(' ', '')
+		var_entry.set('0b' + bin)
+		entry.icursor(tk.END)
+
+#-------------------------------------------
+# メモリーへの退避
+#-------------------------------------------
+def save_mem(event):
+	s = var_entry.get()
+	if len(s) > 34:
+		part1 = s[:34]
+		part2 = s[34:]
+		s = part1 + '\n' + part2
+	var_mem.set(s)
+
+#-------------------------------------------
+# メモリーからの取得
+#-------------------------------------------
+def load_mem(event):
+	s = var_mem.get()
+	s = s.replace('\n', '')
+	var_entry.set(s)
+	entry.icursor(tk.END)
 
 #-------------------------------------------
 # 表示の初期化
 #-------------------------------------------
-def clear(event):
-	entry_var.set("")
-	info_var.set("")
-	history_var[0].set('')
-	history_var[1].set('')
-	history_var[2].set('')
+def on_clear(event):
+	var_entry.set("")
+	var_info.set("")
+	var_history[0].set('')
+	var_history[1].set('')
+	var_history[2].set('')
+	var_base['HEX'].set('')
+	var_base['DEC'].set('')
+	var_base['BIN'].set('')
 
 #-------------------------------------------
 # 式が実行可能か検証する
@@ -102,226 +85,183 @@ def is_eval_excutable(code):
 #-------------------------------------------
 # 式でEnterキーが押されたときの処理
 #-------------------------------------------
-def click_calc(event):
+def on_enter(event):
 	# メッセージクリア
-	info_var.set("")
+	var_info.set("")
 
 	# 式を取得
-	code = entry_var.get()
+	code = var_entry.get()
 
 	# 式が実行可能か検証
 	if is_eval_excutable(code) != True:
-		info_var.set("Calculation formula that cannot be executed")
+		var_info.set("Calculation formula that cannot be executed")
 		return
 
-	# eval()を実行
+	# 式を実行
 	result = eval(code)
 
+	# 64bitの最上位が1の場合は負の値とする
+	if result >= 0x8000000000000000:
+		result = ((1<<64) - (result & ((1<<64) - 1))) * -1
+
 	# 式が前回と違うときのみ履歴を更新する
-	if history_var[0].get() != code+"="+str(result):
-		history_var[2].set(history_var[1].get())
-		history_var[1].set(history_var[0].get())
-		history_var[0].set(code+"="+str(result))
-		entry_var.set(str(result))
+	if var_history[2].get() != "{}={}".format(code, result):
+		var_history[0].set(var_history[1].get())
+		var_history[1].set(var_history[2].get())
+		var_history[2].set("{}={}".format(code, result))
+		var_entry.set(str(result))
 		entry.icursor(tk.END)
 
-#-------------------------------------------
-# 小数点以下を切り捨て
-#-------------------------------------------
-def cut_point(event):
-	s = entry_var.get().split('.')[0]
-	entry_var.set(s)
+	################
+	# 16進数表示
+	################
+	# step1.数値を16進数文字列に変換して'_'で区切る
+	# step2.'_'をスペースに置換し、小文字を大文字に変換
+	n = int(result)
+	if n < 0:
+		# 負の数の場合
+		# 負の数を符号拡張のまま扱う
+		n = (n & 0xFFFFFFFFFFFFFFFF)
 
-#-------------------------------------------
-# 区切り文字を削除する
-#-------------------------------------------
-def remove_separator(code, separator):
-	f = 0
-	result = code
+	# 64ビットの範囲を超えた場合（上位ビットを切り捨て）
+	n = n & 0xFFFFFFFFFFFFFFFF
+	formatted_hex = f"{n:_x}"
+	var_base['HEX'].set(formatted_hex.replace('_', ' ').upper())
 
-	# カンマを削除
-	if code.find(separator) != -1:
-		ret_code = code.replace(separator, '')
-		f = 1 if base == 'DEC' else 0
+	################
+	# 10進数表示
+	################
+	formatted_dec = f"{result:,}"
+	var_base['DEC'].set(formatted_dec)
 
-	# スペースを削除
-	if code.find(' ') != -1:
-		ret_code = ('0x' if base == 'HEX' else '') + code.replace(separator, '')
-
-		f = 1 if base == 'HEX' else 0
-
-	return result, f
-
-#-------------------------------------------
-# 機能ボタンが押されたときの処理
-#-------------------------------------------
-def func_button(event):
-	if event.type == tk.EventType.ButtonPress:
-		check = event.widget['text']
-	elif event.type == tk.EventType.KeyPress:
-		check = event.keysym
+	################
+	# 2進数表示
+	################
+	# step1.10進数を2進数に変換し、4桁ごとにアンダースコア '_' で区切る。'b'は2進数（binary）を指定
+	# step2.アンダースコアをスペースに置換する
+	n = int(result)
+	if n >= 0:
+		# 正の数の場合
+		formatted_bin = f"{n:_b}"
 	else:
-		return
-
-	if check == 'C':
-		# Clear
-		clear(event)
-
-	elif check == 'BIN' or check == 'b':
-		# 区切り文字がある場合は削除する
-		code = entry_var.get()
-		print(code.find('_'))
-		kugiri = 1 if code.find('_') != -1 else 0
-		code = code.replace('_', '')
-		code = code.replace('0b', '')
-
-		# 2進数に変換
-		ret, result = Convert().binary('0b'+code)
-		if ret == True:
-			print('------------')
-			print(kugiri)
-			print(code)
-			print(result)
-			entry_var.set(result if kugiri == 1 else f'{f"{int(result, 2):#_b}".replace("0b", "")}')
-		else:
-			info_var.set("cannot convert")
-		entry.icursor(tk.END)
-
-	elif check == 'DEC' or check == 'd':
-		# 区切り文字がある場合は削除する
-		code = entry_var.get()
-		kugiri = 1 if code.find(',') != -1 else 0
-		code = code.replace(',', '')
-
-		# 10進数に変換
-		ret, result = Convert().decimal(code)
-		if ret == True:
-			entry_var.set(result if kugiri == 1 else "{:,}".format(int(result)))
-		else:
-			info_var.set("cannot convert")
-		entry.icursor(tk.END)
-
-	elif check == 'HEX' or check == 'h':
-		# 区切り文字がある場合は削除する
-		code = entry_var.get()
-		kugiri = 1 if code.find(' ') != -1 else 0
-		code = code.replace(' ', '')
-
-		# 16進数に変換
-		ret, result = Convert().hex(code)
-		if ret == True:
-			print('------------')
-			print(kugiri)
-			print(code)
-			print(result)
-			entry_var.set(result if kugiri == 1 else f'{f"{int(result, 16):_X}".replace("_", " ")}')
-		else:
-			info_var.set("cannot convert")
-		entry.icursor(tk.END)
-
-	elif check == 'CUT':
-		# 小数点以下を切り捨て
-		cut_point(event)
+		# 負の数の場合
+		# 32ビットの範囲で表現するための計算
+		formatted_bin = f'{(1 << 64) + n:064_b}'
+	if len(formatted_bin) >= 40:
+		part1 = formatted_bin[:39]
+		part2 = formatted_bin[40:]
+		formatted_bin = part1 + '\n' + part2
+	var_base['BIN'].set(formatted_bin.replace('_', ' '))
 
 ################################################################################
 #-------------------------------------------
 # define
 #-------------------------------------------
-BG_COLOR = 'gray13'
-FG_COLOR = 'linen'
+BG_COLOR	= 'gray13'
+FG_COLOR	= 'linen'
+FONT		= 'Lucida Console'
+PAD_X_L		= 10
+PAD_X_R		= 10
 
 #-------------------------------------------
 # window setting
 #-------------------------------------------
 root = tk.Tk()
-root.resizable(width=False, height=False)
-root.title(u"電卓")	# Windowのタイトル
-root.geometry("400x250") # Windowサイズ
-root.configure(bg=BG_COLOR)
-root.update_idletasks() # 設定値の更新
+root.resizable(width=True, height=False)	# 画面サイズを固定
+root.title(u"電卓")							# Windowのタイトル
+root.geometry("400x350")					# Windowサイズ
+root.configure(bg=BG_COLOR)					# GUIの背景色
+root.update_idletasks()						# 設定値の更新
+
+##-------------------------------------------
+## ショートカットキーの登録
+##-------------------------------------------
+root.bind('<Escape>',			on_clear)		# 画面のクリア
+root.bind('<F5>',				on_hex)			# 16進数を選択
+root.bind('<F6>',				on_dec)			# 10進数を選択
+root.bind('<F8>',				on_bin)			#  2進数を選択
+root.bind('<Alt-KeyPress-m>',	save_mem)		# メモリーへの退避
+root.bind('<Alt-KeyPress-l>',	load_mem)		# メモリーからの呼び出し
 
 #-------------------------------------------
-# ESCキー押下で式、履歴をクリア
+# 動的変数の定義
 #-------------------------------------------
-label = tk.Label(root, text="", fg=FG_COLOR, bg=BG_COLOR)
-label.pack()
-root.bind('<Escape>', clear)
+var_history	= [tk.StringVar(), tk.StringVar(), tk.StringVar()] # 履歴1～3用
+var_base	= {'HEX':tk.StringVar(), 'DEC':tk.StringVar(), 'BIN':tk.StringVar()}
+var_entry	= tk.StringVar() # 計算式用
+var_mem		= tk.StringVar()
+var_info	= tk.StringVar()
 
 #-------------------------------------------
-# 3世代の計算式の配置
+# gridでウィジェットの配置
 #-------------------------------------------
-# Frame設定
-calc_frame = tk.Frame(root, width=root.winfo_width() - 40, height=140, bg=BG_COLOR)
-calc_frame.propagate(False) # サイズを固定
-calc_frame.place(x=20, y=20) # フレームの配置位置
+row_offset = 0
+lbl_col0 = tk.Label(root, text = "0", fg=BG_COLOR, bg=BG_COLOR, width=1)
+lbl_col1 = tk.Label(root, text = "1", fg=BG_COLOR, bg=BG_COLOR)
+lbl_col0.grid(row=row_offset, column = 0, padx=(PAD_X_L,PAD_X_R))
+lbl_col1.grid(row=row_offset, column = 1)
+#lbl_col0.grid_forget()	# 非表示
+#lbl_col1.grid_forget()	# 非表示
+row_offset+=1
 
-# 履歴の動的変数
-history_var = [tk.StringVar(), tk.StringVar(), tk.StringVar()]
+#-------------------------------------------
+# 履歴の配置
+#-------------------------------------------
+for i in range(0, 3):
+	history = tk.Label(root, textvariable=var_history[i], font=(FONT,10), fg=FG_COLOR, bg=BG_COLOR, anchor='e')
+	history.grid(row=row_offset, column=0, columnspan=2, sticky='ew', padx=(PAD_X_L,PAD_X_R), pady=5)
+	history.bind('<Button-1>', on_history)
+	row_offset+=1
 
+#-------------------------------------------
 # 式の配置
-for i in reversed(range(0, 3)):
-	history = tk.Label(calc_frame, textvariable=history_var[i], font=("Lucida Console",10), fg=FG_COLOR, bg=BG_COLOR)
-	history.pack(pady=5, anchor='e')
-	history.bind('<Button-1>', select_history)
-
 #-------------------------------------------
-# 計算式
-#-------------------------------------------
-# 計算式用の動的変数
-entry_var = tk.StringVar()
+entry = tk.Entry(root, textvariable=var_entry, font=(FONT,20), justify=tk.RIGHT,\
+			insertbackground="gray80", relief=tk.FLAT, fg=FG_COLOR, bg="gray20")
+entry.grid(row=row_offset, column=0, columnspan=2, sticky='ew', padx=(PAD_X_L,PAD_X_R), pady=5, ipady=10)
+entry.bind('<Return>', on_enter)
+row_offset+=1
 
-# 式の配置
-entry = tk.Entry(calc_frame, textvariable=entry_var, font=("",20), justify=tk.RIGHT, insertbackground="gray80",\
-				width=root.winfo_width()-40, relief=tk.FLAT, fg=FG_COLOR, bg="gray20")
-entry.pack(pady=5, ipady=8)
-
-# フォーカスを設定
+# フォーカスを計算式に設定
 entry.focus_set()
 
-# Enterが押された場合
-entry.bind('<Return>', click_calc)
+#-------------------------------------------
+# 基数(16進数,10進数,2進数)の配置
+#-------------------------------------------
+base_table = ['HEX', 'DEC', 'BIN']
+base_handler = [on_hex, on_dec, on_bin]
+for i in range(0, len(base_table)):
+	base_label = tk.Label(root, text=base_table[i]+':', font=(FONT,10), fg=FG_COLOR, bg=BG_COLOR)
+	base_label.grid(row=row_offset, column=0, padx=(PAD_X_L,PAD_X_R), pady=5)
+	base = tk.Label(root, textvariable=var_base[base_table[i]], font=(FONT,10), fg=FG_COLOR, bg=BG_COLOR, anchor='e')
+	base.grid(row=row_offset, column=1, sticky='ew', padx=(0,PAD_X_R), pady=5)
+	base.bind('<Button-1>', base_handler[i])
+	row_offset+=1
 
 #-------------------------------------------
-# ボタン設定
+# メモリーの配置
 #-------------------------------------------
-# Frame設定
-button_frame = tk.Frame(root, width=root.winfo_width(), height=20, bg=BG_COLOR)
-button_frame.propagate(False) # サイズを固定
-button_frame.place(x=20, y=165) # フレームの配置位置
-
-# ボタンの配置
-for i, name in enumerate(BUTTON): # Buttonの配置
-	button = tk.Button(button_frame, text=name, font=('', 10), width=4, height=2,\
-						relief=tk.FLAT, fg=FG_COLOR, bg="gray20")
-	button.grid(row=1, column=i, padx=2) # 列や行を指定して配置
-
-	# Buttonが押された場合
-	button.bind('<Button-1>', func_button)
-
-	# ショートカットキーが押された場合
-	root.bind("<Alt-KeyPress-c>", clear)
-	root.bind("<Alt-KeyPress-b>", func_button)
-	root.bind("<Alt-KeyPress-d>", func_button)
-	root.bind("<Alt-KeyPress-h>", func_button)
-	root.bind("<Alt-KeyPress-p>", cut_point)
+mem_label = tk.Label(root, text='M  :', font=(FONT,10), fg=FG_COLOR, bg=BG_COLOR)
+mem_label.grid(row=row_offset, column=0, padx=(PAD_X_L,PAD_X_R), pady=5)
+mem = tk.Label(root, textvariable=var_mem, font=(FONT,10), fg=FG_COLOR, bg=BG_COLOR, anchor='e', justify=tk.RIGHT)
+mem.grid(row=row_offset, column=1, sticky='ew', padx=(0,PAD_X_R), pady=5)
+mem.bind('<Button-1>', load_mem)
+row_offset+=1
 
 #-------------------------------------------
 # メッセージ
 #-------------------------------------------
-# Frame設定
-info_frame = tk.Frame(root, width=root.winfo_width() - 40, height=40, bg=BG_COLOR)
-info_frame.propagate(False) # サイズを固定
-info_frame.place(x=20, y=210) # フレームの配置位置
-
-# メッセージ用の動的変数
-info_var = tk.StringVar()
-
 # メッセージの配置
-info = tk.Label(info_frame, textvariable=info_var, font=("Lucida Console",10), fg=FG_COLOR, bg=BG_COLOR)
-info.pack(pady=5, anchor='e')
+info = tk.Label(root, textvariable=var_info, font=(FONT,10), fg=FG_COLOR, bg=BG_COLOR, anchor='e')
+info.grid(row=row_offset, column=0, columnspan=2, sticky='ew', padx=(PAD_X_L,PAD_X_R), pady=15)
+row_offset+=1
 
+#--------------------------------------------------------
+# ウィンドウのリサイズに合わせてEntryの幅(column=1)を広げる
+root.grid_columnconfigure(1, weight=1)
+
+#-------------------------------------------
 # Display
+#-------------------------------------------
 root.mainloop()
 
-#if __name__ == "__main__":
-#	main()
